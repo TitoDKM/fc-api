@@ -2,25 +2,41 @@ package me.daboy.fcapi.controllers;
 
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
+import me.daboy.fcapi.entities.Admin;
+import me.daboy.fcapi.repositories.AdminRepository;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.AuthorityUtils;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Date;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 @RestController
+@CrossOrigin(origins = "*")
 public class AdminsController {
+
+    @Autowired
+    private AdminRepository adminRepository;
+    @Autowired
+    private BCryptPasswordEncoder bCryptPasswordEncoder;
 
     @PostMapping("/api/login")
     public HttpEntity<String> login(@RequestBody Map<String, Object> payload) {
-        System.out.println(payload.get("mail").toString());
-        if(payload.get("mail") == null || payload.get("password") == null)
-            return ResponseEntity.ok("Error");
+        if(payload.isEmpty() || payload.get("mail") == null || payload.get("password") == null || payload.get("mail") == "" || payload.get("password") == "")
+            return ResponseEntity.badRequest().body("Todos los campos son obligatorios");
+        Optional<Admin> admin = adminRepository.findAdminByEmail(payload.get("mail").toString());
+        if(!admin.isPresent())
+            return ResponseEntity.badRequest().body("El admin con el email introducido no existe");
+        if(!bCryptPasswordEncoder.matches(payload.get("password").toString(), admin.get().getPassword()))
+            return ResponseEntity.badRequest().body("Contraseña incorrecta");
+
         return ResponseEntity.ok(generateToken(payload.get("mail").toString()));
     }
 
